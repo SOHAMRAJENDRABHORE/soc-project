@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    @apply h-full;
+  }
+  body {
+    font-feature-settings: "ss01", "cv11";
+    /* Subtle ambient gradient + scanline atmosphere */
+    background-image:
+      radial-gradient(ellipse 800px 600px at 20% -10%, rgba(234,88,12,0.06), transparent 60%),
+      radial-gradient(ellipse 600px 500px at 90% 10%, rgba(8,145,178,0.04), transparent 60%);
+  }
+  ::selection {
+    background: rgba(234,88,12,0.35);
+    color: white;
+  }
+}
+
+@layer components {
+  /* Card primitive */
+  .card {
+    @apply bg-ink-900/70 backdrop-blur-sm border border-ink-700/60 rounded-lg;
+  }
+  .card-hover {
+    @apply transition-colors hover:border-ink-600;
+  }
+
+  /* Mono numeric */
+  .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Section labels */
+  .section-label {
+    @apply text-[10px] font-mono uppercase tracking-[0.18em] text-ink-400;
+  }
+
+  /* Primary CTA */
+  .btn-primary {
+    @apply bg-amber-500 hover:bg-amber-400 text-ink-950 font-semibold
+           rounded px-4 py-2 transition-colors text-sm
+           font-mono tracking-wide uppercase
+           disabled:bg-ink-700 disabled:text-ink-400 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-ink-700 hover:bg-ink-600 text-ink-100 font-semibold
+           rounded px-4 py-2 transition-colors text-sm
+           font-mono tracking-wide uppercase border border-ink-600
+           disabled:bg-ink-800 disabled:text-ink-500 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply text-ink-300 hover:text-ink-100 hover:bg-ink-800/60
+           rounded px-3 py-1.5 transition-colors text-sm font-mono;
+  }
+
+  /* Inputs */
+  .input {
+    @apply bg-ink-950/60 border border-ink-700 rounded text-ink-100
+           font-mono text-sm px-3 py-2
+           focus:outline-none focus:border-amber-500 focus:bg-ink-950
+           placeholder:text-ink-500;
+  }
+  .input-block { @apply input block w-full; }
+
+  /* Sev badges */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px]
+           font-mono font-bold uppercase tracking-wider;
+  }
+  .badge-crit { @apply bg-crit/20 text-red-300 ring-1 ring-crit/40; }
+  .badge-warn { @apply bg-warn/20 text-amber-200 ring-1 ring-warn/40; }
+  .badge-ok   { @apply bg-ok/20 text-emerald-300 ring-1 ring-ok/40; }
+  .badge-info { @apply bg-info/20 text-cyan-300 ring-1 ring-info/40; }
+  .badge-mute { @apply bg-ink-700/50 text-ink-300 ring-1 ring-ink-600; }
+
+  /* Subtle stripe pattern for "processing" states */
+  .processing {
+    background-image: linear-gradient(45deg,
+      rgba(234,88,12,0.08) 25%, transparent 25%,
+      transparent 50%, rgba(234,88,12,0.08) 50%,
+      rgba(234,88,12,0.08) 75%, transparent 75%, transparent);
+    background-size: 12px 12px;
+    animation: stripe-slide 1.2s linear infinite;
+  }
+  @keyframes stripe-slide {
+    to { background-position: 24px 0; }
+  }
+}
+
+/* Hide scrollbars on horizontal nav */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

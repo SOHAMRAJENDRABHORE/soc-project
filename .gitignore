@@ -1,0 +1,16 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+.streamlit/secrets.toml
+*.log
+.pytest_cache/
+.DS_Store
+
+# Runtime artifacts — not source code
+central_server.db
+*.db
+reports/
+.agent_id
+.claude/

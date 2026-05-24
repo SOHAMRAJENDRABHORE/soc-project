@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic SOC — Security Operations Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ANIMATED BACKGROUND CANVAS -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay">
+  <div class="loading-content">
+    <div class="loading-shield"><i class="fas fa-shield-halved"></i></div>
+    <div class="loading-title">AGENTIC SOC</div>
+    <div class="loading-sub">Initializing Security Operations Dashboard</div>
+    <div class="loading-bar-wrap"><div class="loading-bar-fill" id="loading-bar"></div></div>
+    <div class="loading-status" id="loading-status">Connecting to server...</div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="modal-settings" class="modal-overlay" onclick="closeModal('modal-settings')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2><i class="fas fa-cog"></i> Dashboard Settings</h2>
+      <button class="modal-close" onclick="closeModal('modal-settings')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>API Server URL</label>
+        <input type="text" id="cfg-api" placeholder="http://localhost:8080">
+      </div>
+      <div class="form-group">
+        <label>Bearer Auth Token</label>
+        <input type="password" id="cfg-token" placeholder="Your AGENT_AUTH_TOKEN...">
+      </div>
+      <div class="form-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="cfg-demo">
+          <span class="toggle-switch"></span>
+          Demo Mode (realistic sample data — no server needed)
+        </label>
+      </div>
+      <div class="form-group">
+        <label class="toggle-label">
+          <input type="checkbox" id="cfg-refresh" checked>
+          <span class="toggle-switch"></span>
+          Auto-refresh every 5 seconds
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-settings')">Cancel</button>
+      <button class="btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save & Reconnect</button>
+    </div>
+  </div>
+</div>
+
+<!-- RUN ALL BOTS MODAL -->
+<div id="modal-run" class="modal-overlay" onclick="closeModal('modal-run')">
+  <div class="modal-box modal-lg" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2><i class="fas fa-rocket"></i> Run Full SOC Pipeline</h2>
+      <button class="modal-close" onclick="closeModal('modal-run')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="run-summary-bar">
+        <div class="run-summary-num" id="run-alert-count">0</div>
+        <div class="run-summary-lbl">Alerts Selected</div>
+        <div class="run-pipeline-preview">
+          <div class="rpp-step decision-color"><i class="fas fa-brain"></i><span>Decision Bot</span></div>
+          <div class="rpp-arrow">&#8594;</div>
+          <div class="rpp-step analysis-color"><i class="fas fa-microscope"></i><span>Analysis Bot</span></div>
+          <div class="rpp-arrow">&#8594;</div>
+          <div class="rpp-step action-color"><i class="fas fa-bolt"></i><span>Action Bot</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-server"></i> Target Endpoint Agent</label>
+        <select id="run-agent" class="form-select">
+          <option value="demo-agent-01">demo-agent-01 (ws-alice-laptop · Windows)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label><i class="fas fa-sliders"></i> Execution Mode</label>
+        <div class="radio-group">
+          <label class="radio-opt">
+            <input type="radio" name="run-mode" value="auto" checked>
+            <span class="radio-pip"></span>
+            <div><strong>Auto</strong><br><small>Execute all remediation actions without approval</small></div>
+          </label>
+          <label class="radio-opt">
+            <input type="radio" name="run-mode" value="manual">
+            <span class="radio-pip"></span>
+            <div><strong>Manual</strong><br><small>Require analyst approval before executing actions</small></div>
+          </label>
+        </div>
+      </div>
+      <div class="vip-warning" id="vip-warning" style="display:none">
+        <i class="fas fa-user-shield"></i>
+        <strong>VIP Endpoint Detected</strong> — Manual approval required regardless of mode selection.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-run')"><i class="fas fa-times"></i> Cancel</button>
+      <button class="btn-run-confirm" onclick="confirmRunAllBots()">
+        <i class="fas fa-play"></i> Start Pipeline
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ALERT DETAIL MODAL -->
+<div id="modal-alert" class="modal-overlay" onclick="closeModal('modal-alert')">
+  <div class="modal-box modal-lg" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2><i class="fas fa-exclamation-triangle"></i> Alert Details</h2>
+      <button class="modal-close" onclick="closeModal('modal-alert')">×</button>
+    </div>
+    <div class="modal-body" id="alert-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-alert')">Close</button>
+      <button class="btn-primary" id="run-single-btn" onclick="runSingleFromDetail()">
+        <i class="fas fa-play"></i> Run Pipeline
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== HEADER ===================== -->
+<header id="main-header">
+  <div class="header-logo">
+    <div class="logo-shield-wrap">
+      <i class="fas fa-shield-halved logo-shield-icon"></i>
+      <div class="logo-ring"></div>
+    </div>
+    <div class="logo-text-wrap">
+      <div class="logo-name">AGENTIC<span class="logo-soc"> SOC</span></div>
+      <div class="logo-sub">Security Operations Center</div>
+    </div>
+  </div>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="overview">
+      <i class="fas fa-chart-line"></i><span>Overview</span>
+    </button>
+    <button class="tab-btn" data-tab="alerts">
+      <i class="fas fa-inbox"></i><span>Alert Inbox</span>
+      <span class="tab-badge" id="badge-alerts" style="display:none">0</span>
+    </button>
+    <button class="tab-btn" data-tab="bots">
+      <i class="fas fa-robot"></i><span>Bot Console</span>
+      <span class="tab-badge live" id="badge-bots" style="display:none">LIVE</span>
+    </button>
+    <button class="tab-btn" data-tab="threats">
+      <i class="fas fa-bug"></i><span>Threat Intel</span>
+    </button>
+    <button class="tab-btn" data-tab="endpoints">
+      <i class="fas fa-network-wired"></i><span>Endpoints</span>
+    </button>
+    <button class="tab-btn" data-tab="incidents">
+      <i class="fas fa-file-contract"></i><span>Incidents</span>
+    </button>
+  </nav>
+
+  <div class="header-right">
+    <div class="conn-pill" id="conn-pill">
+      <div class="conn-dot" id="conn-dot"></div>
+      <span id="conn-label">Connecting</span>
+    </div>
+    <div class="header-clock" id="header-clock">--:--:--</div>
+    <button class="icon-btn" onclick="openModal('modal-settings')" title="Settings">
+      <i class="fas fa-cog"></i>
+    </button>
+  </div>
+</header>
+
+<!-- ===================== MAIN ===================== -->
+<main id="main-content">
+
+  <!-- ═══════════ TAB: OVERVIEW ═══════════ -->
+  <section class="tab-panel active" id="panel-overview">
+    <div class="panel-inner">
+
+      <!-- Stat Cards -->
+      <div class="stat-grid">
+        <div class="stat-card" id="sc-alerts">
+          <div class="stat-icon-bg danger"><i class="fas fa-bell"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="sv-alerts">--</div>
+            <div class="stat-label">Alerts Today</div>
+            <div class="stat-sub" id="ss-alerts">Loading...</div>
+          </div>
+          <div class="stat-spark" id="spark-alerts"></div>
+        </div>
+        <div class="stat-card" id="sc-threats">
+          <div class="stat-icon-bg warning"><i class="fas fa-skull-crossbones"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="sv-threats">--</div>
+            <div class="stat-label">Active Threats</div>
+            <div class="stat-sub" id="ss-threats">Loading...</div>
+          </div>
+          <div class="stat-spark" id="spark-threats"></div>
+        </div>
+        <div class="stat-card" id="sc-runs">
+          <div class="stat-icon-bg primary"><i class="fas fa-robot"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="sv-runs">--</div>
+            <div class="stat-label">Pipeline Runs</div>
+            <div class="stat-sub" id="ss-runs">Loading...</div>
+          </div>
+          <div class="stat-spark" id="spark-runs"></div>
+        </div>
+        <div class="stat-card" id="sc-endpoints">
+          <div class="stat-icon-bg success"><i class="fas fa-network-wired"></i></div>
+          <div class="stat-body">
+            <div class="stat-value" id="sv-endpoints">--</div>
+            <div class="stat-label">Endpoints Online</div>
+            <div class="stat-sub" id="ss-endpoints">Loading...</div>
+          </div>
+          <div class="stat-spark" id="spark-endpoints"></div>
+        </div>
+      </div>
+
+      <!-- Row 1: Volume + Severity -->
+      <div class="charts-row">
+        <div class="chart-card chart-wide">
+          <div class="chart-header">
+            <h3><i class="fas fa-chart-area"></i> Alert Volume — Last 7 Days</h3>
+            <div class="chart-meta" id="vol-meta">Loading...</div>
+          </div>
+          <div class="chart-body"><canvas id="chart-volume"></canvas></div>
+        </div>
+        <div class="chart-card chart-narrow donut-wrap">
+          <div class="chart-header"><h3><i class="fas fa-chart-pie"></i> Severity Split</h3></div>
+          <div class="chart-body donut-body">
+            <canvas id="chart-severity"></canvas>
+            <div class="donut-center-label" id="donut-total">
+              <span class="donut-num">--</span><span class="donut-lbl">total</span>
+            </div>
+          </div>
+          <div class="severity-legend" id="severity-legend"></div>
+        </div>
+      </div>
+
+      <!-- Row 2: MITRE + Enrichment + Kill Chain -->
+      <div class="charts-row three-col">
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-crosshairs"></i> Top MITRE Techniques</h3></div>
+          <div class="chart-body"><canvas id="chart-mitre"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-satellite-dish"></i> Enrichment Coverage</h3></div>
+          <div class="chart-body"><canvas id="chart-enrichment"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-link"></i> Kill Chain Phases</h3></div>
+          <div class="chart-body"><canvas id="chart-killchain"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Row 3: Geo + Activity Feed -->
+      <div class="charts-row">
+        <div class="chart-card chart-wide">
+          <div class="chart-header"><h3 id="geo-chart-title"><i class="fas fa-globe"></i> Top Malicious IPs</h3></div>
+          <div class="chart-body"><canvas id="chart-geo"></canvas></div>
+        </div>
+        <div class="chart-card chart-narrow activity-card">
+          <div class="chart-header"><h3><i class="fas fa-clock-rotate-left"></i> Live Activity</h3></div>
+          <div class="activity-feed" id="activity-feed">
+            <div class="activity-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ TAB: ALERT INBOX ═══════════ -->
+  <section class="tab-panel" id="panel-alerts">
+    <div class="panel-inner">
+
+      <div class="inbox-toolbar">
+        <div class="toolbar-left">
+          <div class="search-wrap">
+            <i class="fas fa-search search-icon-inp"></i>
+            <input type="text" id="alert-search" placeholder="Search alerts, endpoints, sources...">
+          </div>
+          <select id="filter-severity" class="filter-sel">
+            <option value="">All Severities</option>
+            <option value="critical">🔴 Critical</option>
+            <option value="high">🟠 High</option>
+            <option value="medium">🟡 Medium</option>
+            <option value="low">🟢 Low</option>
+          </select>
+          <select id="filter-status" class="filter-sel">
+            <option value="">All Statuses</option>
+            <option value="new">New</option>
+            <option value="triaged">Triaged</option>
+            <option value="auto_processed">Auto-Processed</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <span class="sel-label" id="sel-label" style="display:none">
+            <span id="sel-count">0</span> selected
+          </span>
+          <button class="btn-secondary" onclick="refreshAlerts()">
+            <i class="fas fa-rotate"></i> Refresh
+          </button>
+          <button class="btn-run-all" id="btn-run-all" onclick="openRunModal()">
+            <i class="fas fa-play-circle"></i>
+            Run All 3 Bots
+            <span class="run-badge" id="run-badge">0</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="th-check"><input type="checkbox" id="chk-all" onchange="toggleSelectAll(this)"></th>
+              <th>Severity</th>
+              <th>Alert Title</th>
+              <th>Source</th>
+              <th>Endpoint</th>
+              <th>Tenant</th>
+              <th>Status</th>
+              <th>Ingested</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="alerts-tbody">
+            <tr><td colspan="9"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading alerts...</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ TAB: BOT CONSOLE ═══════════ -->
+  <section class="tab-panel" id="panel-bots">
+    <div class="panel-inner">
+
+      <!-- Pipeline Banner -->
+      <div class="pipeline-banner" id="pipeline-banner">
+        <div class="pb-icon idle" id="pb-icon"><i class="fas fa-circle-pause"></i></div>
+        <div class="pb-text">
+          <div class="pb-title" id="pb-title">Pipeline Idle</div>
+          <div class="pb-sub" id="pb-sub">No active executions. Use Alert Inbox → Run All 3 Bots to start.</div>
+        </div>
+        <div class="pb-progress" id="pb-progress-wrap" style="display:none">
+          <div class="pb-prog-bar"><div class="pb-prog-fill" id="pb-prog-fill"></div></div>
+          <span class="pb-prog-pct" id="pb-prog-pct">0%</span>
+        </div>
+        <div class="pb-alert-info" id="pb-alert-info" style="display:none">
+          Alert <strong id="pb-alert-idx">1</strong> of <strong id="pb-alert-total">1</strong>:
+          <span id="pb-alert-title">--</span>
+        </div>
+      </div>
+
+      <!-- Bot Cards -->
+      <div class="bot-grid">
+
+        <!-- Decision Bot -->
+        <div class="bot-card" id="bot-decision">
+          <div class="bot-card-top">
+            <div class="bot-avatar decision-av"><i class="fas fa-brain"></i></div>
+            <div class="bot-title-wrap">
+              <div class="bot-title">Decision Bot</div>
+              <div class="bot-subtitle">Alert Triage & Verdict</div>
+            </div>
+            <div class="bot-badge idle" id="b-decision-badge">
+              <span class="bdot"></span> Idle
+            </div>
+          </div>
+          <div class="bot-prog-row">
+            <div class="bot-prog-track">
+              <div class="bot-prog-fill decision-fill" id="prog-decision" style="width:0%"></div>
+            </div>
+            <span class="bot-prog-pct" id="pct-decision">0%</span>
+          </div>
+          <div class="bot-step-row" id="step-decision">
+            <i class="fas fa-arrow-right step-arr"></i>
+            <span id="step-decision-txt">Waiting for alert...</span>
+          </div>
+          <div class="bot-metrics-row">
+            <div class="bot-metric"><div class="bm-val" id="bm-d-dur">--</div><div class="bm-lbl">Duration</div></div>
+            <div class="bot-metric"><div class="bm-val" id="bm-d-ioc">--</div><div class="bm-lbl">IOCs</div></div>
+            <div class="bot-metric"><div class="bm-val" id="bm-d-verdict">--</div><div class="bm-lbl">Verdict</div></div>
+          </div>
+        </div>
+
+        <!-- Connector 1 -->
+        <div class="pipeline-connector">
+          <div class="pc-line" id="pc-line-1"></div>
+          <div class="pc-arrow">&#10148;</div>
+        </div>
+
+        <!-- Analysis Bot -->
+        <div class="bot-card" id="bot-analysis">
+          <div class="bot-card-top">
+            <div class="bot-avatar analysis-av"><i class="fas fa-microscope"></i></div>
+            <div class="bot-title-wrap">
+              <div class="bot-title">Analysis Bot</div>
+              <div class="bot-subtitle">Forensic Investigation</div>
+            </div>
+            <div class="bot-badge idle" id="b-analysis-badge">
+              <span class="bdot"></span> Idle
+            </div>
+          </div>
+          <div class="bot-prog-row">
+            <div class="bot-prog-track">
+              <div class="bot-prog-fill analysis-fill" id="prog-analysis" style="width:0%"></div>
+            </div>
+            <span class="bot-prog-pct" id="pct-analysis">0%</span>
+          </div>
+          <div class="bot-step-row" id="step-analysis">
+            <i class="fas fa-arrow-right step-arr"></i>
+            <span id="step-analysis-txt">Waiting for verdict...</span>
+          </div>
+          <div class="bot-metrics-row">
+            <div class="bot-metric"><div class="bm-val" id="bm-a-dur">--</div><div class="bm-lbl">Duration</div></div>
+            <div class="bot-metric"><div class="bm-val" id="bm-a-findings">--</div><div class="bm-lbl">Findings</div></div>
+            <div class="bot-metric"><div class="bm-val" id="bm-a-sev">--</div><div class="bm-lbl">Severity</div></div>
+          </div>
+        </div>
+
+        <!-- Connector 2 -->
+        <div class="pipeline-connector">
+          <div class="pc-line" id="pc-line-2"></div>
+          <div class="pc-arrow">&#10148;</div>
+        </div>
+
+        <!-- Action Bot -->
+        <div class="bot-card" id="bot-action">
+          <div class="bot-card-top">
+            <div class="bot-avatar action-av"><i class="fas fa-bolt"></i></div>
+            <div class="bot-title-wrap">
+              <div class="bot-title">Action Bot</div>
+              <div class="bot-subtitle">Automated Remediation</div>
+            </div>
+            <div class="bot-badge idle" id="b-action-badge">
+              <span class="bdot"></span> Idle
+            </div>
+          </div>
+          <div class="bot-prog-row">
+            <div class="bot-prog-track">
+              <div class="bot-prog-fill action-fill" id="prog-action" style="width:0%"></div>
+            </div>
+            <span class="bot-prog-pct" id="pct-action">0%</span>
+          </div>
+          <div class="bot-step-row" id="step-action">
+            <i class="fas fa-arrow-right step-arr"></i>
+            <span id="step-action-txt">Waiting for analysis report...</span>
+          </div>
+          <div class="bot-metrics-row">
+            <div class="bot-metric"><div class="bm-val" id="bm-x-dur">--</div><div class="bm-lbl">Duration</div></div>
+            <div class="bot-metric"><div class="bm-val" id="bm-x-actions">--</div><div class="bm-lbl">Actions</div></div>
+            <div class="bot-metric"><div class="bm-val" id="bm-x-vip">--</div><div class="bm-lbl">VIP Gate</div></div>
+          </div>
+        </div>
+
+      </div><!-- /bot-grid -->
+
+      <!-- Execution Log -->
+      <div class="exec-log-card">
+        <div class="exec-log-header">
+          <h3><i class="fas fa-terminal"></i> Execution Log</h3>
+          <div class="log-controls">
+            <label class="log-chk"><input type="checkbox" id="autoscroll" checked> Autoscroll</label>
+            <button class="btn-icon-sm" onclick="clearLog()"><i class="fas fa-trash-can"></i></button>
+          </div>
+        </div>
+        <div class="exec-log-body" id="exec-log">
+          <div class="log-entry log-info"><span class="log-ts">--:--:--</span><span class="log-tag info">INFO</span><span class="log-msg">Bot console initialized. Waiting for pipeline execution.</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ TAB: THREAT INTEL ═══════════ -->
+  <section class="tab-panel" id="panel-threats">
+    <div class="panel-inner">
+
+      <div class="charts-row">
+        <div class="chart-card chart-wide">
+          <div class="chart-header">
+            <h3><i class="fas fa-crosshairs"></i> IOC Intelligence Summary</h3>
+            <button class="tbl-btn" title="Reload threat intel from all stored runs" onclick="loadRealThreatIntel(true).then(()=>renderThreatIntel())"><i class="fas fa-rotate-right"></i> Refresh</button>
+            <button class="tbl-btn danger" title="Clear all threat intel data from view" onclick="clearThreatIntel()"><i class="fas fa-trash"></i> Clear</button>
+          </div>
+          <div class="ioc-summary-grid" id="ioc-summary-grid"></div>
+        </div>
+        <div class="chart-card chart-narrow">
+          <div class="chart-header"><h3><i class="fas fa-chart-donut"></i> IOC Type Distribution</h3></div>
+          <div class="chart-body"><canvas id="chart-ioc-types"></canvas></div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-shield-virus"></i> Threat Intelligence Sources</h3></div>
+          <div class="enrichment-source-grid" id="enrichment-source-grid"></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header"><h3><i class="fas fa-diagram-project"></i> MITRE ATT&CK Heatmap</h3></div>
+          <div class="mitre-heatmap" id="mitre-heatmap"></div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3><i class="fas fa-table-list"></i> Recent Indicators of Compromise</h3>
+          <select id="ioc-filter" class="filter-sel-sm" onchange="renderIOCTable()">
+            <option value="">All Types</option>
+            <option value="ip">IP Address</option>
+            <option value="domain">Domain</option>
+            <option value="md5">MD5 Hash</option>
+            <option value="sha256">SHA-256</option>
+            <option value="url">URL</option>
+          </select>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Type</th><th>Value</th><th>Sources</th>
+                <th>Malicious Score</th><th>Tags</th><th>First Seen</th>
+              </tr>
+            </thead>
+            <tbody id="ioc-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ TAB: ENDPOINTS ═══════════ -->
+  <section class="tab-panel" id="panel-endpoints">
+    <div class="panel-inner">
+
+      <div class="ep-toolbar">
+        <div class="ep-stat-bar">
+          <div class="ep-stat"><span class="ep-val" id="ep-total">0</span><span class="ep-lbl">Total</span></div>
+          <div class="ep-stat"><span class="ep-val online" id="ep-online">0</span><span class="ep-lbl">Online</span></div>
+          <div class="ep-stat"><span class="ep-val offline" id="ep-offline">0</span><span class="ep-lbl">Offline</span></div>
+        </div>
+        <button class="btn-secondary" onclick="refreshEndpoints()"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+
+      <div class="agents-grid" id="agents-grid">
+        <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading endpoints...</p></div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════ TAB: INCIDENTS ═══════════ -->
+  <section class="tab-panel" id="panel-incidents">
+    <div class="panel-inner">
+
+      <div class="inc-toolbar">
+        <select id="filter-run-status" class="filter-sel" onchange="renderIncidents()">
+          <option value="">All Statuses</option>
+          <option value="done">Done</option>
+          <option value="running">Running</option>
+          <option value="failed">Failed</option>
+          <option value="requires_approval">Needs Approval</option>
+        </select>
+        <button class="btn-secondary" onclick="refreshIncidents()"><i class="fas fa-rotate"></i> Refresh</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Run ID</th><th>Alert</th><th>Agent</th><th>Status</th>
+              <th>Severity</th><th>Duration</th><th>Started</th><th>VIP</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="incidents-tbody">
+            <tr><td colspan="9"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading incidents...</p></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<!-- APPROVE ACTIONS MODAL -->
+<div id="modal-approve" class="modal-overlay" onclick="closeModal('modal-approve')">
+  <div class="modal-box modal-lg" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2><i class="fas fa-shield-check"></i> Approve Remediation Actions</h2>
+      <button class="modal-close" onclick="closeModal('modal-approve')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="approve-run-info" id="approve-run-info"></div>
+      <div class="approve-actions-list" id="approve-actions-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('modal-approve')"><i class="fas fa-times"></i> Cancel</button>
+      <button class="btn-run-confirm" onclick="submitApproval()">
+        <i class="fas fa-play"></i> Execute Selected
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+{
+  "_comment": "Globex Inc — a Linux-heavy environment to demonstrate the same pipeline works for non-Windows alerts.",
+  "value": [
+    {
+      "id": "globex-alert-0001",
+      "displayName": "Suspicious binary executed from /tmp with C2 indicators",
+      "description": "An unknown binary in /tmp was executed by a non-root user. The binary contains hard-coded strings matching known C2 URLs and ransomware command patterns. Static analysis indicates references to shadow copy deletion commands and Windows API names typical of cross-platform malware loaders.",
+      "severity": "high",
+      "status": "new",
+      "category": "Execution",
+      "createdDateTime": "2026-01-15T10:14:55.7Z",
+      "lastUpdateDateTime": "2026-01-15T10:15:02.3Z",
+      "mitreTechniques": ["T1059.004", "T1071.001"],
+      "tenantId": "globex-tenant",
+      "serviceSource": "microsoftDefenderForEndpoint",
+      "alertWebUrl": "https://security.microsoft.com/alerts/globex-alert-0001",
+      "evidence": [
+        {
+          "@odata.type": "#microsoft.graph.security.deviceEvidence",
+          "deviceDnsName": "linux-host-01.globex.local",
+          "mdeDeviceId": "linux-host-01",
+          "osPlatform": "Ubuntu-22.04"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.processEvidence",
+          "processCommandLine": "/home/labskraft/agentic-soc/samples/fake_malware.elf",
+          "processId": 8472,
+          "parentProcessImageFile": {"fileName": "/bin/bash"},
+          "imageFile": {
+            "fileName": "fake_malware.elf",
+            "filePath": "/home/labskraft/agentic-soc/samples/fake_malware.elf"
+          }
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.ipEvidence",
+          "ipAddress": "185.220.101.45",
+          "countryLetterCode": "DE"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.urlEvidence",
+          "url": "http://c2.evil-domain.example/beacon"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.fileEvidence",
+          "fileDetails": {
+            "fileName": "fake_malware.elf",
+            "filePath": "/home/labskraft/agentic-soc/samples/fake_malware.elf"
+          }
+        }
+      ]
+    },
+    {
+      "id": "globex-alert-0002",
+      "displayName": "Unusual outbound connection from web server",
+      "description": "nginx process initiated an outbound TCP connection to an external IP on a non-standard port. No business justification on file for this destination.",
+      "severity": "medium",
+      "status": "new",
+      "category": "CommandAndControl",
+      "createdDateTime": "2026-01-15T13:08:22.1Z",
+      "lastUpdateDateTime": "2026-01-15T13:08:22.8Z",
+      "mitreTechniques": ["T1071"],
+      "tenantId": "globex-tenant",
+      "serviceSource": "microsoftDefenderForEndpoint",
+      "alertWebUrl": "https://security.microsoft.com/alerts/globex-alert-0002",
+      "evidence": [
+        {
+          "@odata.type": "#microsoft.graph.security.deviceEvidence",
+          "deviceDnsName": "web-prod-02.globex.local",
+          "osPlatform": "Debian-12"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.processEvidence",
+          "processCommandLine": "/usr/sbin/nginx -g daemon off;"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.ipEvidence",
+          "ipAddress": "203.0.113.99",
+          "countryLetterCode": "??"
+        }
+      ]
+    },
+    {
+      "id": "globex-alert-0003",
+      "displayName": "Routine apt update completed",
+      "description": "Scheduled package update completed successfully. No anomalies detected. Logged for inventory tracking purposes only.",
+      "severity": "informational",
+      "status": "new",
+      "category": "None",
+      "createdDateTime": "2026-01-15T03:01:00.0Z",
+      "mitreTechniques": [],
+      "tenantId": "globex-tenant",
+      "serviceSource": "microsoftDefenderForEndpoint",
+      "evidence": [
+        {
+          "@odata.type": "#microsoft.graph.security.deviceEvidence",
+          "deviceDnsName": "web-prod-02.globex.local",
+          "osPlatform": "Debian-12"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "samples": [
+    {
+      "label": "Suspicious PowerShell download",
+      "alert": {
+        "alert_id": "DEMO-001",
+        "source": "manual",
+        "severity": "high",
+        "title": "Suspicious PowerShell execution with encoded command",
+        "description": "PowerShell launched with -EncodedCommand by user account. Connection to 185.220.101.45 observed. Dropped file hash 44d88612fea8a8f36de82e1278abb02f.",
+        "endpoint_id": "WIN-DESK-042",
+        "raw": {
+          "process": "powershell.exe -nop -w hidden -EncodedCommand SQBuAHYAbwBrAGUA...",
+          "parent_process": "winword.exe",
+          "user": "alice",
+          "remote_ip": "185.220.101.45",
+          "dropped_file": "C:\\Users\\alice\\AppData\\Local\\Temp\\update.exe",
+          "file_md5": "44d88612fea8a8f36de82e1278abb02f"
+        }
+      }
+    },
+    {
+      "label": "Likely benign software update",
+      "alert": {
+        "alert_id": "DEMO-002",
+        "source": "manual",
+        "severity": "low",
+        "title": "Outbound connection from updater process",
+        "description": "Microsoft updater connected to download.microsoft.com over HTTPS.",
+        "endpoint_id": "WIN-DESK-017",
+        "raw": {
+          "process": "MicrosoftUpdate.exe",
+          "remote_domain": "download.microsoft.com",
+          "remote_port": 443,
+          "user": "SYSTEM"
+        }
+      }
+    },
+    {
+      "label": "Possible ransomware activity",
+      "alert": {
+        "alert_id": "DEMO-003",
+        "source": "manual",
+        "severity": "critical",
+        "title": "Mass file modification + shadow copy deletion",
+        "description": "Process explorer.exe spawned vssadmin.exe delete shadows /all /quiet. Hundreds of files renamed with .locked extension. Beacon to 91.219.236.222.",
+        "endpoint_id": "WIN-SRV-003",
+        "raw": {
+          "commands": [
+            "vssadmin.exe delete shadows /all /quiet",
+            "wbadmin delete catalog -quiet",
+            "bcdedit /set {default} recoveryenabled No"
+          ],
+          "files_modified_per_minute": 847,
+          "c2_ip": "91.219.236.222",
+          "ransom_note": "C:\\Users\\Public\\READ_ME_TO_DECRYPT.txt"
+        }
+      }
+    }
+  ]
+}

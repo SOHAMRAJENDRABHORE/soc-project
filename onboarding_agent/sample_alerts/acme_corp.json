@@ -1,0 +1,125 @@
+{
+  "_comment": "Microsoft Graph Security alerts_v2 schema. Real Defender alerts look very close to this.",
+  "value": [
+    {
+      "id": "acme-alert-0001",
+      "providerAlertId": "da637847234567890123",
+      "displayName": "Suspicious PowerShell encoded command execution",
+      "description": "PowerShell launched with -EncodedCommand flag by user account. The decoded payload attempts to download additional code from a known malicious host. This behavior is consistent with initial access stages of common malware loaders.",
+      "severity": "high",
+      "status": "new",
+      "classification": "unknown",
+      "determination": "unknown",
+      "category": "Execution",
+      "createdDateTime": "2026-01-15T09:23:11.4Z",
+      "lastUpdateDateTime": "2026-01-15T09:23:14.1Z",
+      "mitreTechniques": ["T1059.001"],
+      "tenantId": "acme-corp-tenant",
+      "serviceSource": "microsoftDefenderForEndpoint",
+      "detectionSource": "antivirus",
+      "alertWebUrl": "https://security.microsoft.com/alerts/acme-alert-0001",
+      "evidence": [
+        {
+          "@odata.type": "#microsoft.graph.security.deviceEvidence",
+          "deviceDnsName": "WIN-DESK-042.acme.corp",
+          "mdeDeviceId": "1a2b3c4d5e6f7890",
+          "osPlatform": "Windows11",
+          "loggedOnUsers": [{"accountName": "alice", "domainName": "ACME"}]
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.processEvidence",
+          "processCommandLine": "powershell.exe -nop -w hidden -EncodedCommand SQBuAHYAbwBrAGUALQBXAGUAYgBSAGUAcQB1AGUAcwB0AA==",
+          "processId": 4892,
+          "parentProcessImageFile": {"fileName": "winword.exe"},
+          "imageFile": {"fileName": "powershell.exe", "sha256": "9f914d42706fe215501044acd85a32d58aaef1419d404fddfa5d3b48f66ccd9f"}
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.ipEvidence",
+          "ipAddress": "185.220.101.45",
+          "countryLetterCode": "DE"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.urlEvidence",
+          "url": "http://malware-c2.example.test/payload.exe"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.fileEvidence",
+          "fileDetails": {
+            "fileName": "update.exe",
+            "filePath": "C:\\Users\\alice\\AppData\\Local\\Temp\\update.exe",
+            "sha256": "44d88612fea8a8f36de82e1278abb02f4d1f9f5e2c8c7c8e1e2f3a4b5c6d7e8f"
+          }
+        }
+      ]
+    },
+    {
+      "id": "acme-alert-0002",
+      "displayName": "Mass file modification with shadow copy deletion",
+      "description": "Process explorer.exe spawned vssadmin.exe to delete shadow copies. Hundreds of files were subsequently renamed with .locked extension. Outbound beacon detected to known ransomware C2 infrastructure. This is a strong indicator of ransomware execution in progress.",
+      "severity": "critical",
+      "status": "new",
+      "category": "Impact",
+      "createdDateTime": "2026-01-15T11:47:33.2Z",
+      "lastUpdateDateTime": "2026-01-15T11:47:38.9Z",
+      "mitreTechniques": ["T1486", "T1490", "T1059.003"],
+      "tenantId": "acme-corp-tenant",
+      "serviceSource": "microsoftDefenderForEndpoint",
+      "alertWebUrl": "https://security.microsoft.com/alerts/acme-alert-0002",
+      "evidence": [
+        {
+          "@odata.type": "#microsoft.graph.security.deviceEvidence",
+          "deviceDnsName": "WIN-SRV-003.acme.corp",
+          "mdeDeviceId": "9z8y7x6w5v4u3210",
+          "osPlatform": "WindowsServer2022"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.processEvidence",
+          "processCommandLine": "vssadmin.exe delete shadows /all /quiet",
+          "parentProcessImageFile": {"fileName": "explorer.exe"}
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.processEvidence",
+          "processCommandLine": "bcdedit /set {default} recoveryenabled No"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.ipEvidence",
+          "ipAddress": "91.219.236.222",
+          "countryLetterCode": "RU"
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.fileEvidence",
+          "fileDetails": {
+            "fileName": "READ_ME_TO_DECRYPT.txt",
+            "filePath": "C:\\Users\\Public\\READ_ME_TO_DECRYPT.txt"
+          }
+        }
+      ]
+    },
+    {
+      "id": "acme-alert-0003",
+      "displayName": "Defender SmartScreen blocked download",
+      "description": "User attempted to download an executable from an uncategorized site. SmartScreen prevented the download. No further action required, but worth noting the user's browsing behavior.",
+      "severity": "low",
+      "status": "new",
+      "category": "InitialAccess",
+      "createdDateTime": "2026-01-15T14:02:08.0Z",
+      "lastUpdateDateTime": "2026-01-15T14:02:08.5Z",
+      "mitreTechniques": [],
+      "tenantId": "acme-corp-tenant",
+      "serviceSource": "microsoftDefenderForEndpoint",
+      "alertWebUrl": "https://security.microsoft.com/alerts/acme-alert-0003",
+      "evidence": [
+        {
+          "@odata.type": "#microsoft.graph.security.deviceEvidence",
+          "deviceDnsName": "WIN-DESK-019.acme.corp",
+          "osPlatform": "Windows11",
+          "loggedOnUsers": [{"accountName": "bob", "domainName": "ACME"}]
+        },
+        {
+          "@odata.type": "#microsoft.graph.security.urlEvidence",
+          "url": "http://uncategorized-site.example/tool.exe"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+# Core
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+httpx>=0.27.0
+
+# LLM
+openai>=1.30.0
+
+# Frontend
+streamlit>=1.32.0
+
+# Central server (FastAPI backend agents poll)
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+
+# Endpoint agent dependencies
+psutil>=5.9.0           # cross-platform process/network telemetry
+distro>=1.9.0           # Linux distro detection
+
+# Forensics (optional — only needed on the endpoint agent machine, not the server)
+# volatility3>=2.5.0      # memory forensics — install separately: pip install volatility3
+# yara-python>=4.5.0      # YARA signature scanning — install separately on agent if needed
+
+# Reporting
+reportlab>=4.0.0        # PDF generation (pure Python, no system deps)
+
+# Future bots
+paramiko>=3.4.0
+
+# Onboarding agent (credential encryption at rest)
+cryptography>=42.0.0
