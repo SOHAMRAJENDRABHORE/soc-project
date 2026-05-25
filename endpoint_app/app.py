@@ -402,7 +402,27 @@ class AgentApp(tk.Tk):
             self.destroy()
 
 
+def _ensure_admin():
+    """Re-launch the process with UAC elevation if not already admin (Windows only)."""
+    if platform.system() != "Windows":
+        return
+    try:
+        import ctypes
+        if ctypes.windll.shell32.IsUserAnAdmin():
+            return  # already admin
+        # Re-launch with elevation
+        import ctypes
+        params = " ".join(f'"{a}"' for a in sys.argv)
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, params, None, 1
+        )
+        sys.exit(0)
+    except Exception:
+        pass  # non-Windows or elevation unavailable — continue anyway
+
+
 def main():
+    _ensure_admin()
     app = AgentApp()
     app.mainloop()
 

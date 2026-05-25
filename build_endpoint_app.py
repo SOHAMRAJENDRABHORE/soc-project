@@ -32,6 +32,7 @@ def main():
         "--windowed",                     # no console window (GUI app)
         "--clean",                        # clean build cache
         "--noconfirm",                    # overwrite existing dist
+        "--manifest", str(ROOT / "endpoint_app" / "admin.manifest"),  # require UAC elevation
         # Include the shared + endpoint_agent packages
         "--add-data", f"{ROOT / 'shared'}{SEP}shared",
         "--add-data", f"{ROOT / 'endpoint_agent'}{SEP}endpoint_agent",
