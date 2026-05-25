@@ -1,0 +1,28 @@
+# Python runtime
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Secrets and local config
+.env
+.agent_id
+.claude/
+
+# Runtime artifacts (these become Docker volumes)
+central_server.db
+*.db
+reports/
+
+# Git and IDE
+.git/
+*.log
+
+# Node (frontend-react not needed in the image)
+frontend-react/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
