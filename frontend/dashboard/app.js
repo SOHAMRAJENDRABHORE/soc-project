@@ -201,6 +201,9 @@ function switchTab(name) {
     p.classList.toggle('active', p.id === `panel-${name}`);
   });
   if (name === 'bots') initBotConsoleIdle();
+  if (name === 'forensics' && CFG.demoMode) {
+    showToast('info', 'Forensics Lab', 'Connect to a real server to use forensic tools.', 5000);
+  }
   if (name === 'threats') {
     // Re-fetch if we have runs but no IOCs yet and user hasn't explicitly cleared
     if (!CFG.demoMode && STATE.iocs.length === 0 && STATE.runs.length > 0 && !STATE.threatIntelCleared) {
@@ -1915,6 +1918,174 @@ function startClock() {
     el.textContent = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
   }, 1000);
   el.textContent = new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+}
+
+// ── Forensics Lab ────────────────────────────────────
+
+function _forensicsBusy(btnEl, busy) {
+  btnEl.disabled = busy;
+  const icon = btnEl.querySelector('i');
+  if (busy) {
+    icon.className = 'fas fa-spinner fa-spin';
+  } else {
+    icon.className = btnEl._origIcon || 'fas fa-play';
+  }
+}
+
+function _showForensicsResult(hdrId, outputId, success, summary, data) {
+  const hdr = document.getElementById(hdrId);
+  const out = document.getElementById(outputId);
+  if (hdr) {
+    hdr.style.display = 'block';
+    hdr.style.color = success ? 'var(--c-green)' : 'var(--c-red)';
+    hdr.textContent = summary;
+  }
+  if (out) {
+    out.style.display = 'block';
+    out.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  }
+}
+
+async function runYaraScan() {
+  const btn = document.querySelector('.yara-btn');
+  btn._origIcon = 'fas fa-play';
+  _forensicsBusy(btn, true);
+  const rawPaths = document.getElementById('yara-paths').value.trim();
+  const paths = rawPaths ? rawPaths.split('\n').map(s => s.trim()).filter(Boolean) : [];
+  try {
+    const res = await API.post('/forensics/yara', { paths });
+    const matched = res.matches?.length ?? res.matched_rules?.length ?? 0;
+    _showForensicsResult('yara-result-hdr', 'yara-output', true,
+      `Scan complete — ${matched} rule match(es) found`, res);
+    if (matched > 0) showToast('warning', 'YARA Match', `${matched} rule(s) matched`);
+    else showToast('success', 'YARA Scan', 'No threats detected');
+  } catch (e) {
+    _showForensicsResult('yara-result-hdr', 'yara-output', false, `Error: ${e.message}`, null);
+    showToast('error', 'YARA Scan Failed', e.message);
+  } finally {
+    _forensicsBusy(btn, false);
+  }
+}
+
+async function runGhidraAnalysis() {
+  const btn = document.querySelector('.ghidra-btn');
+  btn._origIcon = 'fas fa-play';
+  _forensicsBusy(btn, true);
+  const binary_path = document.getElementById('ghidra-path').value.trim();
+  const timeout_seconds = parseInt(document.getElementById('ghidra-timeout').value) || 300;
+  try {
+    const res = await API.post('/forensics/ghidra', { binary_path, timeout_seconds });
+    const strings_found = res.strings?.length ?? res.findings?.length ?? 0;
+    _showForensicsResult('ghidra-result-hdr', 'ghidra-output', res.success !== false,
+      `Analysis complete — ${strings_found} string(s) / finding(s)`, res);
+  } catch (e) {
+    _showForensicsResult('ghidra-result-hdr', 'ghidra-output', false, `Error: ${e.message}`, null);
+    showToast('error', 'Ghidra Analysis Failed', e.message);
+  } finally {
+    _forensicsBusy(btn, false);
+  }
+}
+
+async function runMemoryAnalysis() {
+  const btn = document.querySelector('.volatility-btn');
+  btn._origIcon = 'fas fa-play';
+  _forensicsBusy(btn, true);
+  const dump_path = document.getElementById('mem-path').value.trim();
+  const dump_os = document.getElementById('mem-os').value;
+  const deep = document.getElementById('mem-deep').value === 'true';
+  const pluginStr = document.getElementById('mem-plugins').value.trim();
+  const plugins = pluginStr ? pluginStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+  try {
+    const res = await API.post('/forensics/memory', { dump_path, dump_os, deep, plugins });
+    _showForensicsResult('mem-result-hdr', 'mem-output', res.success !== false,
+      `Memory analysis complete (${dump_os}, ${deep ? 'deep' : 'standard'} mode)`, res);
+  } catch (e) {
+    _showForensicsResult('mem-result-hdr', 'mem-output', false, `Error: ${e.message}`, null);
+    showToast('error', 'Memory Analysis Failed', e.message);
+  } finally {
+    _forensicsBusy(btn, false);
+  }
+}
+
+async function runIOCLookup() {
+  const btn = document.querySelector('.ioc-btn');
+  btn._origIcon = 'fas fa-search';
+  _forensicsBusy(btn, true);
+  const value = document.getElementById('ioc-value').value.trim();
+  const ioc_type = document.getElementById('ioc-type').value || null;
+  if (!value) { showToast('warning', 'IOC Lookup', 'Enter an IOC value first'); _forensicsBusy(btn, false); return; }
+  try {
+    const res = await API.post('/forensics/ioc', { value, ioc_type });
+    const wrapEl = document.getElementById('ioc-result-wrap');
+    const verdictEl = document.getElementById('ioc-verdict-bar');
+    const outEl = document.getElementById('ioc-output');
+    wrapEl.style.display = 'flex';
+    wrapEl.style.flexDirection = 'column';
+    wrapEl.style.gap = '6px';
+    const v = res.verdict || 'unknown';
+    verdictEl.className = `ioc-verdict-bar ${v}`;
+    verdictEl.textContent = `Verdict: ${v.toUpperCase()} — Max malicious score: ${res.max_malicious_score ?? 0}/100 (${res.sources_hit ?? 0}/${res.sources_queried ?? 0} sources hit)`;
+    outEl.textContent = JSON.stringify(res, null, 2);
+    const toastLevel = v === 'malicious' ? 'error' : v === 'suspicious' ? 'warning' : 'success';
+    showToast(toastLevel, 'IOC Lookup', `${res.ioc_type}: ${value} → ${v}`);
+  } catch (e) {
+    document.getElementById('ioc-result-wrap').style.display = 'none';
+    showToast('error', 'IOC Lookup Failed', e.message);
+  } finally {
+    _forensicsBusy(btn, false);
+  }
+}
+
+// ── SOC-AI Chatbot ────────────────────────────────────
+
+const CHAT_HISTORY = [];
+
+function toggleChatbot() {
+  document.getElementById('chatbot-widget').classList.toggle('open');
+  if (document.getElementById('chatbot-widget').classList.contains('open')) {
+    document.getElementById('chatbot-input').focus();
+  }
+}
+
+function _appendChatMsg(role, content) {
+  const msgs = document.getElementById('chatbot-messages');
+  const div = document.createElement('div');
+  div.className = `cb-msg ${role}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'cb-bubble';
+  bubble.textContent = content;
+  div.appendChild(bubble);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chatbot-input');
+  const sendBtn = document.getElementById('chatbot-send');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  sendBtn.disabled = true;
+
+  _appendChatMsg('user', text);
+  CHAT_HISTORY.push({ role: 'user', content: text });
+
+  const thinkingEl = _appendChatMsg('thinking', 'SOC-AI is thinking...');
+
+  try {
+    const res = await API.post('/chat', { messages: CHAT_HISTORY });
+    thinkingEl.remove();
+    const reply = res.reply || '(no response)';
+    _appendChatMsg('assistant', reply);
+    CHAT_HISTORY.push({ role: 'assistant', content: reply });
+  } catch (e) {
+    thinkingEl.remove();
+    _appendChatMsg('assistant', `Error: ${e.message}. Make sure the server is running and you are not in demo mode.`);
+  } finally {
+    sendBtn.disabled = false;
+    input.focus();
+  }
 }
 
 // ── Event Listeners ───────────────────────────────────

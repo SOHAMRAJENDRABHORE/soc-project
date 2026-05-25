@@ -72,3 +72,16 @@ class LLMClient:
             temperature=0.3,
         )
         return response.choices[0].message.content or ""
+
+    def chat(self, messages: list[dict], system_prompt: str = "") -> str:
+        """Multi-turn conversation. messages = [{role, content}, ...]"""
+        all_messages = []
+        if system_prompt:
+            all_messages.append({"role": "system", "content": system_prompt})
+        all_messages.extend(messages)
+        response = self._client.chat.completions.create(
+            model=self.deployment,
+            messages=all_messages,
+            temperature=0.7,
+        )
+        return response.choices[0].message.content or ""

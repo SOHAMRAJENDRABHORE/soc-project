@@ -168,6 +168,9 @@
     <button class="tab-btn" data-tab="incidents">
       <i class="fas fa-file-contract"></i><span>Incidents</span>
     </button>
+    <button class="tab-btn" data-tab="forensics">
+      <i class="fas fa-flask"></i><span>Forensics Lab</span>
+    </button>
   </nav>
 
   <div class="header-right">
@@ -599,7 +602,166 @@
     </div>
   </section>
 
+  <!-- ═══════════ TAB: FORENSICS LAB ═══════════ -->
+  <section class="tab-panel" id="panel-forensics">
+    <div class="panel-inner">
+
+      <div class="forensics-intro">
+        <i class="fas fa-flask"></i>
+        <div>
+          <strong>Forensics Lab</strong> — Run standalone forensic tools against artifacts.
+          All tools run server-side via the Endpoint Agent modules.
+          Requires an online agent and valid credentials.
+        </div>
+      </div>
+
+      <div class="forensics-grid">
+
+        <!-- YARA Scanner -->
+        <div class="forensics-card">
+          <div class="forensics-card-header yara-color">
+            <i class="fas fa-shield-virus"></i>
+            <div>
+              <div class="fc-title">YARA Scanner</div>
+              <div class="fc-sub">Scan files with YARA rules for malware signatures</div>
+            </div>
+          </div>
+          <div class="forensics-card-body">
+            <label class="fc-label">File paths to scan (one per line)</label>
+            <textarea id="yara-paths" class="fc-textarea" rows="3" placeholder="/tmp/suspicious.exe&#10;/var/tmp/sample.bin"></textarea>
+            <button class="fc-btn yara-btn" onclick="runYaraScan()">
+              <i class="fas fa-play"></i> Run YARA Scan
+            </button>
+            <div class="fc-result-wrap">
+              <div class="fc-result-header" id="yara-result-hdr" style="display:none"></div>
+              <pre class="fc-output" id="yara-output" style="display:none"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ghidra / Binary RE -->
+        <div class="forensics-card">
+          <div class="forensics-card-header ghidra-color">
+            <i class="fas fa-microchip"></i>
+            <div>
+              <div class="fc-title">Ghidra / Binary RE</div>
+              <div class="fc-sub">Static analysis and string extraction on binaries</div>
+            </div>
+          </div>
+          <div class="forensics-card-body">
+            <label class="fc-label">Binary path</label>
+            <input type="text" id="ghidra-path" class="fc-input" placeholder="/tmp/suspicious.exe">
+            <label class="fc-label">Timeout (seconds)</label>
+            <input type="number" id="ghidra-timeout" class="fc-input" value="300" min="30" max="900">
+            <button class="fc-btn ghidra-btn" onclick="runGhidraAnalysis()">
+              <i class="fas fa-play"></i> Run Analysis
+            </button>
+            <div class="fc-result-wrap">
+              <div class="fc-result-header" id="ghidra-result-hdr" style="display:none"></div>
+              <pre class="fc-output" id="ghidra-output" style="display:none"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Volatility Memory Analysis -->
+        <div class="forensics-card">
+          <div class="forensics-card-header volatility-color">
+            <i class="fas fa-memory"></i>
+            <div>
+              <div class="fc-title">Volatility Memory Analysis</div>
+              <div class="fc-sub">Analyze memory dumps for processes, network, malware</div>
+            </div>
+          </div>
+          <div class="forensics-card-body">
+            <label class="fc-label">Memory dump path</label>
+            <input type="text" id="mem-path" class="fc-input" placeholder="/tmp/memory.dmp">
+            <div class="fc-row">
+              <div class="fc-col">
+                <label class="fc-label">OS</label>
+                <select id="mem-os" class="fc-select">
+                  <option value="windows">Windows</option>
+                  <option value="linux">Linux</option>
+                </select>
+              </div>
+              <div class="fc-col">
+                <label class="fc-label">Mode</label>
+                <select id="mem-deep" class="fc-select">
+                  <option value="false">Standard</option>
+                  <option value="true">Deep</option>
+                </select>
+              </div>
+            </div>
+            <label class="fc-label">Plugins (optional, comma-separated)</label>
+            <input type="text" id="mem-plugins" class="fc-input" placeholder="pslist,netscan,malfind">
+            <button class="fc-btn volatility-btn" onclick="runMemoryAnalysis()">
+              <i class="fas fa-play"></i> Analyze Memory
+            </button>
+            <div class="fc-result-wrap">
+              <div class="fc-result-header" id="mem-result-hdr" style="display:none"></div>
+              <pre class="fc-output" id="mem-output" style="display:none"></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- IOC Lookup -->
+        <div class="forensics-card">
+          <div class="forensics-card-header ioc-color">
+            <i class="fas fa-magnifying-glass-chart"></i>
+            <div>
+              <div class="fc-title">IOC Enrichment Lookup</div>
+              <div class="fc-sub">Query VirusTotal, AbuseIPDB, OTX, Shodan for any IOC</div>
+            </div>
+          </div>
+          <div class="forensics-card-body">
+            <label class="fc-label">IOC value (IP, domain, URL, hash, email)</label>
+            <input type="text" id="ioc-value" class="fc-input" placeholder="8.8.8.8 or malware.exe sha256...">
+            <label class="fc-label">Type (auto-detect if blank)</label>
+            <select id="ioc-type" class="fc-select">
+              <option value="">Auto-detect</option>
+              <option value="ip">IP Address</option>
+              <option value="domain">Domain</option>
+              <option value="url">URL</option>
+              <option value="hash_md5">MD5 Hash</option>
+              <option value="hash_sha1">SHA-1 Hash</option>
+              <option value="hash_sha256">SHA-256 Hash</option>
+              <option value="email">Email</option>
+            </select>
+            <button class="fc-btn ioc-btn" onclick="runIOCLookup()">
+              <i class="fas fa-search"></i> Lookup IOC
+            </button>
+            <div class="fc-result-wrap" id="ioc-result-wrap" style="display:none">
+              <div class="ioc-verdict-bar" id="ioc-verdict-bar"></div>
+              <pre class="fc-output" id="ioc-output"></pre>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /forensics-grid -->
+    </div>
+  </section>
+
 </main>
+
+<!-- SOC-AI CHATBOT WIDGET -->
+<div id="chatbot-fab" onclick="toggleChatbot()" title="Ask SOC-AI">
+  <i class="fas fa-robot"></i>
+</div>
+
+<div id="chatbot-widget">
+  <div id="chatbot-header">
+    <div class="cb-title"><i class="fas fa-robot"></i> SOC-AI Assistant</div>
+    <button class="cb-close" onclick="toggleChatbot()">×</button>
+  </div>
+  <div id="chatbot-messages">
+    <div class="cb-msg assistant">
+      <div class="cb-bubble">Hi! I'm SOC-AI. Ask me about MITRE techniques, IOC enrichment, pipeline results, YARA/Volatility/Ghidra tools, or anything security-related.</div>
+    </div>
+  </div>
+  <div id="chatbot-input-row">
+    <input type="text" id="chatbot-input" placeholder="Ask anything..." onkeydown="if(event.key==='Enter')sendChatMessage()">
+    <button id="chatbot-send" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i></button>
+  </div>
+</div>
 
 <!-- APPROVE ACTIONS MODAL -->
 <div id="modal-approve" class="modal-overlay" onclick="closeModal('modal-approve')">

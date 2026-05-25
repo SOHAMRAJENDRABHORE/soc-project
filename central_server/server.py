@@ -32,6 +32,7 @@ from shared.schemas import (
 )
 
 from . import db
+from forensics.api import router as forensics_router
 
 log = get_logger(__name__)
 
@@ -442,6 +443,60 @@ def dashboard_stats():
 def dashboard_chart_data():
     """Time-series and distribution data for dashboard charts."""
     return db.chart_data()
+
+
+# ---------- Forensics Lab ----------
+
+app.include_router(forensics_router, dependencies=[Depends(require_auth)])
+
+
+# ---------- SOC AI Chatbot ----------
+
+_SOC_SYSTEM_PROMPT = """You are SOC-AI, an expert security operations assistant embedded in an Agentic SOC platform.
+
+You help analysts understand:
+- Pipeline results (Decision Bot → Analysis Bot → Action Bot → Endpoint Agent)
+- MITRE ATT&CK techniques, tactics, and kill chain phases
+- Threat intelligence and IOC enrichment (VirusTotal, AbuseIPDB, OTX, Shodan)
+- YARA rules and malware scanning
+- Memory forensics with Volatility (Windows/Linux)
+- Binary reverse engineering with Ghidra
+- Azure OpenAI models used in the platform (gpt-4.1-mini deployment)
+- Incident response workflows and remediation steps
+- SOC dashboard features and how to use them
+
+Be concise, accurate, and security-focused. When discussing specific threats use MITRE technique IDs where applicable.
+Do not speculate about credentials, keys, or internal infrastructure. If asked about something outside security operations, redirect to your core purpose."""
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+
+
+@app.post("/chat", dependencies=[Depends(require_auth)])
+async def chat_endpoint(req: ChatRequest):
+    """SOC-AI chatbot — multi-turn conversation endpoint."""
+    import asyncio
+    from shared.llm_client import LLMClient
+
+    if not req.messages:
+        raise HTTPException(400, "No messages provided")
+
+    try:
+        llm = LLMClient()
+        msgs = [{"role": m.role, "content": m.content} for m in req.messages]
+        reply = await asyncio.to_thread(llm.chat, msgs, _SOC_SYSTEM_PROMPT)
+        return {"reply": reply}
+    except RuntimeError as e:
+        raise HTTPException(503, str(e))
+    except Exception as e:
+        log.error(f"Chat endpoint error: {e}")
+        raise HTTPException(500, "Chat failed")
 
 
 class BatchRunRequest(BaseModel):
