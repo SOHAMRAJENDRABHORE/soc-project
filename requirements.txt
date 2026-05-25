@@ -29,3 +29,6 @@ paramiko>=3.4.0
 
 # Onboarding agent (credential encryption at rest)
 cryptography>=42.0.0
+
+# ngrok tunnel (optional — only needed when hosting the server over ngrok)
+pyngrok>=7.0.0
