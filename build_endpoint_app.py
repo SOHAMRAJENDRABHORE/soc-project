@@ -54,6 +54,11 @@ def main():
         "--hidden-import", "httpx",
         "--hidden-import", "pydantic",
         "--hidden-import", "psutil",
+        # Forensic tools — bundled so no install needed on endpoint
+        "--hidden-import", "volatility3",
+        "--hidden-import", "volatility3.framework",
+        "--hidden-import", "volatility3.plugins",
+        "--hidden-import", "yara",
         # Entry point
         str(ROOT / "endpoint_app" / "app.py"),
     ]
