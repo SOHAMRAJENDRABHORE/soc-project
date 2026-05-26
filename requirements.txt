@@ -32,3 +32,6 @@ cryptography>=42.0.0
 
 # ngrok tunnel (optional — only needed when hosting the server over ngrok)
 pyngrok>=7.0.0
+
+# Real-time file system monitoring (endpoint agent file watcher)
+watchdog>=4.0.0

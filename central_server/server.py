@@ -450,6 +450,66 @@ def dashboard_chart_data():
 app.include_router(forensics_router, dependencies=[Depends(require_auth)])
 
 
+# ---------- Real-time Forensics Findings ----------
+
+class ForensicFindingRequest(BaseModel):
+    source: str                          # "file_watcher" | "process_monitor"
+    title: str
+    description: str
+    severity: str = "medium"
+    timestamp: Optional[str] = None
+    agent_id: Optional[str] = None
+    file_path: Optional[str] = None
+    sha256: Optional[str] = None
+    yara_hits: Optional[int] = None
+    yara_result: Optional[dict] = None
+    ghidra_result: Optional[dict] = None
+    process: Optional[dict] = None
+
+
+@app.post("/forensics/finding", dependencies=[Depends(require_auth)])
+def ingest_forensic_finding(req: ForensicFindingRequest):
+    """
+    Receives real-time findings from the endpoint file watcher / process monitor.
+    Stores them as pending alerts so they appear in the dashboard Inbox.
+    """
+    import uuid as _uuid
+    from shared.schemas import Alert
+
+    pending_id = f"fw-{_uuid.uuid4().hex[:12]}"
+    alert_id = f"rtf-{_uuid.uuid4().hex[:10]}"
+
+    alert = Alert(
+        alert_id=alert_id,
+        source=req.source,
+        severity=req.severity,
+        title=req.title,
+        description=req.description,
+        endpoint_id=req.agent_id,
+        raw={
+            "file_path": req.file_path,
+            "sha256": req.sha256,
+            "yara_hits": req.yara_hits,
+            "yara_result": req.yara_result,
+            "ghidra_result": req.ghidra_result,
+            "process": req.process,
+            "agent_id": req.agent_id,
+        },
+    )
+
+    db.create_pending_alert({
+        "pending_id": pending_id,
+        "tenant_id": req.agent_id or "endpoint",
+        "tenant_name": f"Endpoint Agent ({req.agent_id or 'unknown'})",
+        "alert": alert.model_dump(mode="json"),
+        "status": "new",
+        "ingested_at": req.timestamp or datetime.now(timezone.utc).isoformat(),
+    })
+
+    log.info(f"[ForensicFinding] {req.source}: {req.title} [{req.severity}] from {req.agent_id}")
+    return {"ok": True, "pending_id": pending_id, "alert_id": alert_id}
+
+
 # ---------- SOC AI Chatbot ----------
 
 _SOC_SYSTEM_PROMPT = """You are SOC-AI, an expert security operations assistant embedded in an Agentic SOC platform.

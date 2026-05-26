@@ -365,6 +365,82 @@ class AgentApp(tk.Tk):
         ttk.Button(tools_tab, text="Check Tools", command=self._check_tools).grid(
             row=10, column=0, columnspan=3, pady=(14, 4), sticky="w")
 
+        # ─── Tab 3: Real-time Monitor ───
+        monitor_tab = tk.Frame(nb, bg=BG, padx=14, pady=10)
+        nb.add(monitor_tab, text="  Real-time Monitor  ")
+
+        # File watcher toggle
+        self._fw_enabled = tk.BooleanVar(value=self._cfg.get("file_watcher_enabled", True))
+        tk.Checkbutton(monitor_tab, text="Enable File Watcher",
+                       variable=self._fw_enabled, bg=BG, fg=FG1,
+                       selectcolor=CARD, activebackground=BG,
+                       font=("Segoe UI", 10, "bold")).grid(
+                       row=0, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        tk.Label(monitor_tab,
+                 text="Watches directories for new executables → auto-runs YARA → Ghidra if hit",
+                 bg=BG, fg="#6e7681", font=("Segoe UI", 8)).grid(
+                 row=1, column=0, columnspan=3, sticky="w", pady=(0, 10))
+
+        # Watched directories
+        tk.Label(monitor_tab, text="Watched Directories (one per line)",
+                 bg=BG, fg=FG2, font=("Segoe UI", 9)).grid(
+                 row=2, column=0, columnspan=3, sticky="w")
+
+        self._watch_dirs_text = tk.Text(monitor_tab, bg=CARD, fg=FG1,
+                                        font=("Consolas", 9), height=4,
+                                        insertbackground=FG1,
+                                        relief="flat", bd=1)
+        self._watch_dirs_text.grid(row=3, column=0, columnspan=2,
+                                   sticky="ew", pady=(4, 0))
+        # Pre-fill with defaults
+        default_dirs = self._cfg.get("watch_dirs", "")
+        if not default_dirs:
+            import platform as _plat, os as _os
+            if _plat.system() == "Windows":
+                default_dirs = "\n".join([
+                    _os.environ.get("TEMP", "C:\\Windows\\Temp"),
+                    _os.path.join(_os.environ.get("USERPROFILE", ""), "Downloads"),
+                ])
+            else:
+                default_dirs = "/tmp\n~/Downloads"
+        self._watch_dirs_text.insert("1.0", default_dirs)
+
+        def _add_watch_dir():
+            path = filedialog.askdirectory(title="Add watched directory")
+            if path:
+                current = self._watch_dirs_text.get("1.0", "end").strip()
+                self._watch_dirs_text.delete("1.0", "end")
+                self._watch_dirs_text.insert("1.0", (current + "\n" + path).strip())
+        ttk.Button(monitor_tab, text="+ Dir", command=_add_watch_dir, width=6).grid(
+            row=3, column=2, sticky="nw", padx=(6, 0), pady=(4, 0))
+
+        monitor_tab.columnconfigure(1, weight=1)
+
+        # Process monitor toggle
+        tk.Frame(monitor_tab, bg=BORDER, height=1).grid(
+            row=4, column=0, columnspan=3, sticky="ew", pady=12)
+
+        self._pm_enabled = tk.BooleanVar(value=self._cfg.get("process_monitor_enabled", True))
+        tk.Checkbutton(monitor_tab, text="Enable Process Monitor",
+                       variable=self._pm_enabled, bg=BG, fg=FG1,
+                       selectcolor=CARD, activebackground=BG,
+                       font=("Segoe UI", 10, "bold")).grid(
+                       row=5, column=0, columnspan=3, sticky="w", pady=(0, 4))
+        tk.Label(monitor_tab,
+                 text="Detects suspicious new processes (LOLBins, Office→shell, obfuscated PS1)",
+                 bg=BG, fg="#6e7681", font=("Segoe UI", 8)).grid(
+                 row=6, column=0, columnspan=3, sticky="w", pady=(0, 10))
+
+        tk.Label(monitor_tab, text="Suspicion threshold (0-100)",
+                 bg=BG, fg=FG2, font=("Segoe UI", 9)).grid(
+                 row=7, column=0, sticky="w")
+        self._pm_threshold = tk.StringVar(value=str(self._cfg.get("pm_threshold", 40)))
+        ttk.Entry(monitor_tab, textvariable=self._pm_threshold, width=6).grid(
+            row=7, column=1, sticky="w", padx=(8, 0))
+        tk.Label(monitor_tab, text="(lower = more alerts)",
+                 bg=BG, fg="#6e7681", font=("Segoe UI", 8)).grid(
+                 row=7, column=2, sticky="w", padx=(6, 0))
+
         # ── Buttons ──
         btn_frame = tk.Frame(self, bg=BG)
         btn_frame.pack(fill="x", padx=16, pady=8)
@@ -493,10 +569,35 @@ class AgentApp(tk.Tk):
         if sample_mem:
             os.environ["SAMPLE_MEMORY_DUMP"] = sample_mem
 
+        watch_dirs = [d.strip() for d in
+                      self._watch_dirs_text.get("1.0", "end").strip().splitlines()
+                      if d.strip()]
+        fw_enabled = self._fw_enabled.get()
+        pm_enabled = self._pm_enabled.get()
+        try:
+            pm_threshold = int(self._pm_threshold.get())
+        except ValueError:
+            pm_threshold = 40
+
+        if ghidra:
+            os.environ["GHIDRA_HEADLESS"] = ghidra
+        if sample_bin:
+            os.environ["SAMPLE_BINARY"] = sample_bin
+        if sample_mem:
+            os.environ["SAMPLE_MEMORY_DUMP"] = sample_mem
+        os.environ["AGENT_FW_ENABLED"] = "1" if fw_enabled else "0"
+        os.environ["AGENT_PM_ENABLED"] = "1" if pm_enabled else "0"
+        os.environ["AGENT_PM_THRESHOLD"] = str(pm_threshold)
+        os.environ["AGENT_WATCH_DIRS"] = ":".join(watch_dirs)
+
         save_config({
             "server_url": url, "auth_token": token, "poll_interval": poll,
             "ghidra_path": ghidra, "sample_binary": sample_bin,
             "sample_memory_dump": sample_mem,
+            "file_watcher_enabled": fw_enabled,
+            "process_monitor_enabled": pm_enabled,
+            "pm_threshold": pm_threshold,
+            "watch_dirs": "\n".join(watch_dirs),
         })
 
         self._stop_event = threading.Event()

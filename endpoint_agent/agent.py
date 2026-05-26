@@ -190,6 +190,19 @@ def main():
             backoff = min(backoff * 2, 60)
         backoff = 2
 
+        # Start real-time watchers (file + process)
+        watcher = None
+        try:
+            from .watcher import RealTimeWatcher
+            watcher = RealTimeWatcher(
+                server_url=settings.CENTRAL_SERVER_URL,
+                auth_token=settings.AGENT_AUTH_TOKEN,
+                agent_id=reg.agent_id,
+            )
+            watcher.start()
+        except Exception as e:
+            log.warning(f"Real-time watchers could not start: {e}")
+
         # Main loop
         try:
             while True:
@@ -202,6 +215,9 @@ def main():
                     time.sleep(settings.AGENT_POLL_INTERVAL)
         except KeyboardInterrupt:
             log.info("Agent stopped (Ctrl+C)")
+        finally:
+            if watcher:
+                watcher.stop()
 
 
 if __name__ == "__main__":
