@@ -24,12 +24,20 @@ from shared.logger import get_logger
 
 log = get_logger(__name__)
 
-# File extensions to watch
-WATCH_EXTENSIONS = {
+# File extensions to watch (Windows)
+_WIN_EXTENSIONS = {
     ".exe", ".dll", ".sys", ".bat", ".cmd", ".ps1",
     ".vbs", ".js", ".hta", ".scr", ".pif", ".com",
     ".jar", ".msi", ".tmp",
 }
+
+# File extensions to watch (Linux/macOS additions)
+_UNIX_EXTENSIONS = {
+    ".sh", ".py", ".pl", ".rb", ".php", ".elf",
+    ".so", ".dylib", ".ko", ".out",
+}
+
+WATCH_EXTENSIONS = _WIN_EXTENSIONS | _UNIX_EXTENSIONS
 
 # Default directories to watch (platform-aware)
 def _default_watch_dirs() -> list[str]:
@@ -42,7 +50,12 @@ def _default_watch_dirs() -> list[str]:
             "C:\\Windows\\Temp",
         ]
     else:
-        dirs = ["/tmp", "/var/tmp", os.path.expanduser("~/Downloads")]
+        dirs = [
+            "/tmp", "/var/tmp", "/dev/shm",
+            os.path.expanduser("~/Downloads"),
+            os.path.expanduser("~/Desktop"),
+            "/usr/local/bin",  # watch for new bins dropped here
+        ]
     return [d for d in dirs if d and Path(d).exists()]
 
 
@@ -55,6 +68,14 @@ def _file_sha256(path: str) -> str:
         return h.hexdigest()
     except Exception:
         return ""
+
+
+def _is_executable(path: str) -> bool:
+    """Return True if file has executable bit set (Linux/macOS)."""
+    try:
+        return bool(os.stat(path).st_mode & 0o111)
+    except OSError:
+        return False
 
 
 def _wait_for_file_ready(path: str, timeout: int = 10) -> bool:
@@ -131,11 +152,14 @@ class FileWatcher:
                     continue
                 self._seen.add(path)
                 ext = Path(path).suffix.lower()
-                if ext not in WATCH_EXTENSIONS:
-                    continue
-                # New suspicious file found
-                threading.Thread(target=self._analyse, args=(path,),
-                                 daemon=True).start()
+                if ext in WATCH_EXTENSIONS:
+                    threading.Thread(target=self._analyse, args=(path,),
+                                     daemon=True).start()
+                elif not ext and platform.system() != "Windows":
+                    # On Linux/macOS: no extension but executable bit set → likely ELF
+                    if _is_executable(path):
+                        threading.Thread(target=self._analyse, args=(path,),
+                                         daemon=True).start()
         except PermissionError:
             pass
 

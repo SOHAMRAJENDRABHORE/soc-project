@@ -25,26 +25,46 @@ from shared.logger import get_logger
 
 log = get_logger(__name__)
 
-# Processes that are suspicious when spawned by Office/browser apps
-LOLBINS = {
+# Windows LOLBins
+_WIN_LOLBINS = {
     "cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe",
     "mshta.exe", "regsvr32.exe", "rundll32.exe", "certutil.exe", "bitsadmin.exe",
     "msiexec.exe", "wmic.exe", "psexec.exe", "net.exe", "net1.exe",
     "sc.exe", "schtasks.exe", "at.exe", "reg.exe", "regedit.exe",
 }
 
+# Linux LOLBins / living-off-the-land binaries
+_LINUX_LOLBINS = {
+    "bash", "sh", "dash", "zsh", "ksh",
+    "python", "python3", "perl", "ruby", "php",
+    "wget", "curl", "nc", "ncat", "netcat", "socat",
+    "nmap", "tcpdump", "tshark",
+    "crontab", "at", "awk", "sed", "tee",
+    "base64", "xxd", "dd", "openssl",
+    "gcc", "cc", "make",
+    "chmod", "chown", "chattr",
+    "find", "xargs",
+    "nsenter", "unshare", "capsh",
+}
+
+LOLBINS = _WIN_LOLBINS | _LINUX_LOLBINS
+
 # Office / browser processes — suspicious if they spawn shells
 OFFICE_PROCS = {
+    # Windows
     "winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe",
     "onenote.exe", "msaccess.exe", "chrome.exe", "firefox.exe",
     "msedge.exe", "iexplore.exe", "acrobat.exe", "acrord32.exe",
+    # Linux
+    "libreoffice", "soffice", "evince", "okular",
+    "thunderbird", "chromium", "chromium-browser",
 }
 
 # Suspicious path fragments
 SUSPICIOUS_PATH_FRAGMENTS = [
     "\\temp\\", "\\tmp\\", "\\appdata\\local\\temp\\",
     "\\downloads\\", "\\public\\", "\\programdata\\",
-    "/tmp/", "/var/tmp/", "/dev/shm/",
+    "/tmp/", "/var/tmp/", "/dev/shm/", "/run/user/",
 ]
 
 
@@ -99,6 +119,42 @@ def _score_process(proc_info: dict) -> tuple[int, list[str]]:
     if name in ("mshta.exe", "wscript.exe", "cscript.exe") and _is_suspicious_path(cmdline):
         score += 40
         reasons.append(f"{name} executing script from temp directory")
+
+    # Linux: shell with -i flag (interactive reverse shell)
+    if name in ("bash", "sh", "dash", "zsh") and "-i" in (proc_info.get("cmdline") or []):
+        score += 50
+        reasons.append(f"Interactive shell ({name} -i) — possible reverse shell")
+
+    # Linux: interpreter executing inline code (python -c, perl -e, ruby -e, php -r)
+    if name in ("python", "python3", "perl", "ruby", "php") and (
+        " -c " in f" {cmdline} " or " -e " in f" {cmdline} " or " -r " in f" {cmdline} "
+    ):
+        score += 45
+        reasons.append(f"{name} with inline code execution flag")
+
+    # Linux: curl or wget piped to shell (download-and-exec)
+    if name in ("curl", "wget") and any(
+        x in cmdline for x in ["| sh", "| bash", "| python", "|sh", "|bash", "|python"]
+    ):
+        score += 60
+        reasons.append(f"{name} piped to shell interpreter")
+
+    # Linux: base64 decode (often used to decode payloads)
+    if name == "base64" and "-d" in cmdline:
+        score += 30
+        reasons.append("base64 decode (possible payload decoding)")
+
+    # Linux: nc/socat used for reverse shell
+    if name in ("nc", "ncat", "netcat", "socat") and (
+        "-e" in cmdline or "exec" in cmdline or "/bin/sh" in cmdline or "/bin/bash" in cmdline
+    ):
+        score += 65
+        reasons.append(f"{name} with shell exec (likely reverse shell)")
+
+    # Linux: nsenter/unshare used for container escape
+    if name in ("nsenter", "unshare", "capsh"):
+        score += 55
+        reasons.append(f"{name} used — possible container escape or privilege escalation")
 
     return min(score, 100), reasons
 

@@ -99,8 +99,10 @@ def main():
     # Handle Ctrl+C gracefully
     def _shutdown(sig, frame):
         print("\n[Stopping] Closing ngrok tunnel and server...")
-        ngrok.disconnect(tunnel.public_url)
-        ngrok.kill()
+        try:
+            ngrok.kill()
+        except Exception:
+            pass
         server_proc.terminate()
         sys.exit(0)
 
