@@ -23,6 +23,11 @@ reports/
 # Node (frontend-react not needed in the image)
 frontend-react/node_modules/
 
+# PyInstaller output (rebuilt inside the container)
+dist/
+build/
+*.spec
+
 # OS
 .DS_Store
 Thumbs.db

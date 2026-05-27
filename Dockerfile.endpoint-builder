@@ -1,0 +1,24 @@
+FROM python:3.11-slim
+
+# tkinter runtime + libs PyInstaller-bundled apps need
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+        python3-tk \
+        tk-dev \
+        libgl1 \
+        libglib2.0-0 \
+        binutils \
+        upx-ucl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy only what the build needs (requirements + source)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt pyinstaller
+
+# Copy full project
+COPY . .
+
+# Run the cross-platform build script
+CMD ["python", "build_endpoint_app.py"]
